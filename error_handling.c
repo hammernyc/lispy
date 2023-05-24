@@ -4,7 +4,6 @@
 
 #include <stdio.h>
 #include <stdlib.h>
-#include <math.h>
 #include "mpc.h"
 
 /* If we are compiling on Windows compile these functions */
@@ -105,10 +104,10 @@ lval eval_op(lval x, char* op, lval y) {
     return lval_num(pow(x.num, y.num));
   }
   if (strcmp(op, "min") == 0) {
-    return lval_num(fminl(x.num, y.num));
+    return lval_num(x.num < y.num ? x.num : y.num);
   }
   if (strcmp(op, "max") == 0) {
-    return lval_num(fmaxl(x.num, y.num));
+    return lval_num(x.num > y.num ? x.num : y.num);
   }
 
   return lval_err(LERR_BAD_OP);
