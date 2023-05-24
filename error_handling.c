@@ -36,18 +36,18 @@ enum { LERR_DIV_ZERO, LERR_BAD_OP, LERR_BAD_NUM };
 
 typedef struct {
   int type;
-  long num;
+  double num;
   int err;
 } lval;
 
-lval lval_num(long x) {
+lval lval_num(double x) {
   lval v;
   v.type = LVAL_NUM;
   v.num = x;
   return v;
 }
 
-lval lval_err(long x) {
+lval lval_err(double x) {
   lval v;
   v.type = LVAL_ERR;
   v.num = x;
@@ -57,7 +57,7 @@ lval lval_err(long x) {
 void lval_print(lval v) {
   switch (v.type) {
     case LVAL_NUM:
-      printf("%li", v.num);
+      printf("%g", v.num);
       break;
     case LVAL_ERR:
       switch (v.err) {
@@ -117,7 +117,7 @@ lval eval_op(lval x, char* op, lval y) {
 lval eval(mpc_ast_t* t) {
     if (strstr(t->tag, "number")) {
       errno = 0;
-      long x = strtol(t->contents, NULL, 10);
+      double x = strtol(t->contents, NULL, 10);
       return errno != ERANGE ? lval_num(x) : lval_err(LERR_BAD_NUM);
     }
 
