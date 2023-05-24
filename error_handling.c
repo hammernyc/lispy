@@ -107,7 +107,6 @@ lval eval_op(lval x, char* op, lval y) {
     return lval_num(x.num < y.num ? x.num : y.num);
   }
   if (strcmp(op, "max") == 0) {
-    printf("debug %f %f\n", x.num, y.num);
     return lval_num(x.num > y.num ? x.num : y.num);
   }
 
