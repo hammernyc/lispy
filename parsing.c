@@ -1,9 +1,10 @@
 /**
- * compile with: cc -std=c99 -Wall prompt.c -ledit -o prompt
+ * compile with: cc -std=c99 -Wall parsing.c mpc.c -ledit -o parsing
  */
 
 #include <stdio.h>
 #include <stdlib.h>
+#include "mpc.h"
 
 /* If we are compiling on Windows compile these functions */
 #ifdef _WIN32
