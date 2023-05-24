@@ -98,7 +98,7 @@ lval eval_op(lval x, char* op, lval y) {
   if (strcmp(op, "%") == 0)   {
     return y.num == 0 ?
       lval_err(LERR_DIV_ZERO) :
-      lval_num((int) x.num % (int) y.num);
+      lval_num((long) x.num % (long) y.num);
   }
   if (strcmp(op, "^") == 0)   {
     return lval_num(pow(x.num, y.num));
@@ -107,6 +107,7 @@ lval eval_op(lval x, char* op, lval y) {
     return lval_num(x.num < y.num ? x.num : y.num);
   }
   if (strcmp(op, "max") == 0) {
+    printf("debug %f %f\n", x.num, y.num);
     return lval_num(x.num > y.num ? x.num : y.num);
   }
 
@@ -116,7 +117,7 @@ lval eval_op(lval x, char* op, lval y) {
 lval eval(mpc_ast_t* t) {
     if (strstr(t->tag, "number")) {
       errno = 0;
-      double x = strtol(t->contents, NULL, 10);
+      double x = strtof(t->contents, NULL);
       return errno != ERANGE ? lval_num(x) : lval_err(LERR_BAD_NUM);
     }
 
@@ -149,7 +150,7 @@ int main(int argc, char** argv) {
     /* Define them with the following Language */
     mpca_lang(MPCA_LANG_DEFAULT,
       "                                                           \
-        number   : /-?[0-9]+/ | /-?[0-9]*.[0-9]+/ ;               \
+        number   : /-?[0-9]+\\.[0-9]+/ | /-?[0-9]+/ ;             \
         operator : '+' |'-' | '*' | '/' | '%' | '^' |             \
                     \"min\" | \"max\" ;                           \
         expr     : <number> | '(' <operator> <expr>+ ')' ;        \
