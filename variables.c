@@ -89,10 +89,12 @@ lval* lval_sym(char* s) {
   return v;
 }
 
-lval* lval_fun(lbuiltin func) {
+lval* lval_fun(lbuiltin func, char *name) {
   lval* v = malloc(sizeof(lval));
   v->type = LVAL_FUN;
   v->fun = func;
+  v->sym = malloc(strlen(name) + 1);
+  strcpy(v->sym, name);
   return v;
 }
 
@@ -117,12 +119,12 @@ lval* lval_qexpr(void) {
 void lval_del(lval* v) {
   switch (v->type) {
     case LVAL_NUM: 
-    case LVAL_FUN:
       break;
     case LVAL_ERR:
       free(v->err);
       break;
     case LVAL_SYM:
+    case LVAL_FUN:
       free(v->sym);
       break;
     case LVAL_SEXPR:
@@ -167,18 +169,22 @@ lval* lval_copy(lval* v) {
   x->type = v->type;
 
   switch (v->type) {
-    /* Copy Functions and Numbers Directly */
-    case LVAL_FUN: x->fun = v->fun; break;
+    /* Copy Numbers Directly */
     case LVAL_NUM: x->num = v->num; break;
 
     /* Copy Strings using malloc and strcpy */
     case LVAL_ERR:
       x->err = malloc(strlen(v->err) + 1);
       strcpy(x->err, v->err); break;
-
+    case LVAL_FUN:
+      x->sym = malloc(strlen(v->sym) + 1);
+      strcpy(x->sym, v->sym);
+      x->fun = v->fun;
+      break;
     case LVAL_SYM:
       x->sym = malloc(strlen(v->sym) + 1);
-      strcpy(x->sym, v->sym); break;
+      strcpy(x->sym, v->sym);
+      break;
 
     /* Copy Lists by copying each sub-expression */
     case LVAL_SEXPR:
@@ -217,7 +223,7 @@ void lval_print(lval* v) {
       printf("Error: %s", v->err);
       break;
     case LVAL_FUN: 
-      printf("<function>");
+      printf("function: %s", v->sym);
       break;
     case LVAL_SYM: 
       printf("%s", v->sym);
@@ -531,7 +537,7 @@ lval *builtin_max(lenv* e, lval* a) {
 
 void lenv_add_builtin(lenv* e, char* name, lbuiltin func) {
   lval* k = lval_sym(name);
-  lval* v = lval_fun(func);
+  lval* v = lval_fun(func, name);
   lenv_put(e, k, v);
   lval_del(k);
   lval_del(v);
@@ -698,7 +704,6 @@ int main(int argc, char** argv) {
       mpc_err_print(r.error);
       mpc_err_delete(r.error);
     }
-    
     free(input);
   }
   
