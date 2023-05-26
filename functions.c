@@ -43,7 +43,7 @@ struct lval {
   int type;
 
   /* Basic */
-  long num;
+  double num;
   char* err;
   char* sym;
   
@@ -58,7 +58,7 @@ struct lval {
   lval** cell;
 };
 
-lval* lval_num(long x) {
+lval* lval_num(double x) {
   lval* v = malloc(sizeof(lval));
   v->type = LVAL_NUM;
   v->num = x;
@@ -248,9 +248,9 @@ void lval_print(lval* v) {
       }
     break;
     case LVAL_BOOL:
-      printf("%s", v->num ? "#t" : "#f");
+      printf("%s", v->num ? "#true" : "#false");
       break;
-    case LVAL_NUM:   printf("%li", v->num); break;
+    case LVAL_NUM:   printf("%g", v->num); break;
     case LVAL_ERR:   printf("Error: %s", v->err); break;
     case LVAL_SYM:   printf("%s", v->sym); break;
     case LVAL_SEXPR: lval_print_expr(v, '(', ')'); break;
@@ -806,14 +806,14 @@ lval* lval_eval(lenv* e, lval* v) {
 
 lval* lval_read_num(mpc_ast_t* t) {
   errno = 0;
-  long x = strtol(t->contents, NULL, 10);
+  double x = strtod(t->contents, NULL);
   return errno != ERANGE ? lval_num(x) : lval_err("Invalid Number.");
 }
 
 
 lval* lval_read(mpc_ast_t* t) {
   if (strstr(t->tag, "boolean")) { 
-    if (strcmp(t->contents, "#t") == 0) {
+    if (strcmp(t->contents, "true") == 0) {
       return lval_bool(BOOL_TRUE);
     } else {
       return lval_bool(BOOL_FALSE);
@@ -843,6 +843,8 @@ lval* lval_read(mpc_ast_t* t) {
 
 int main(int argc, char** argv) {
   mpc_parser_t* Boolean = mpc_new("boolean");
+  mpc_parser_t* Int = mpc_new("int");
+  mpc_parser_t* Double = mpc_new("double");
   mpc_parser_t* Number = mpc_new("number");
   mpc_parser_t* Symbol = mpc_new("symbol");
   mpc_parser_t* Sexpr  = mpc_new("sexpr");
@@ -852,8 +854,10 @@ int main(int argc, char** argv) {
   
   mpca_lang(MPCA_LANG_DEFAULT,
     "                                                     \
-      boolean : /#t|#f/  ;                                \
-      number : /-?[0-9]+/ ;                               \
+      boolean : /true|false/  ;                           \
+      int : /-?[0-9]+/ ;                                  \
+      double : /-?[0-9]*\\.[0-9]+/ ;                      \
+      number : <double> | <int>  ;                        \
       symbol : /[a-zA-Z0-9_+\\-*\\/\\\\=<>!&\\|]+/ ;      \
       sexpr  : '(' <expr>* ')' ;                          \
       qexpr  : '{' <expr>* '}' ;                          \
@@ -861,7 +865,7 @@ int main(int argc, char** argv) {
                <qexpr> ;                                  \
       lispy  : /^/ <expr>* /$/ ;                          \
     ",
-    Boolean, Number, Symbol, Sexpr, Qexpr, Expr, Lispy);
+    Boolean, Int, Double, Number, Symbol, Sexpr, Qexpr, Expr, Lispy);
   
   puts("Lispy Version 0.0.0.0.9");
   puts("Press Ctrl+c to Exit\n");
@@ -893,7 +897,7 @@ int main(int argc, char** argv) {
   
   lenv_del(e);
   
-  mpc_cleanup(7, Boolean, Number, Symbol, Sexpr, Qexpr, Expr, Lispy);
+  mpc_cleanup(9, Boolean, Int, Double, Number, Symbol, Sexpr, Qexpr, Expr, Lispy);
   
   return 0;
 }
