@@ -627,6 +627,44 @@ lval* builtin_if(lenv* e, lval* a) {
   return x;
 }
 
+lval* builtin_or(lenv* e, lval* a) {
+  lval *r = lval_bool(BOOL_FALSE);
+  for (int i = 0; i < a->count; i++) {
+    LASSERT_TYPE("||", a, i, LVAL_BOOL);
+    if (a->cell[i]->num) {
+      r->num = BOOL_TRUE;
+      break;
+    }
+  }
+  lval_del(a);
+  return r;
+}
+
+lval* builtin_and(lenv* e, lval* a) {
+  lval *r = lval_bool(BOOL_TRUE);
+  for (int i = 0; i < a->count; i++) {
+    LASSERT_TYPE("&&", a, i, LVAL_BOOL);
+    if (!a->cell[i]->num) {
+      r->num = BOOL_FALSE;
+      break;
+    }
+  }
+  lval_del(a);
+  return r;
+}
+
+lval* builtin_not(lenv* e, lval* a) {
+  LASSERT_NUM("!", a, 1);
+  LASSERT_TYPE("!", a, 0, LVAL_BOOL);
+  lval* x = lval_take(a, 0);
+  if (x->num == BOOL_TRUE){
+    x->num = BOOL_FALSE;
+  } else {
+    x->num = BOOL_TRUE;
+  }
+  return x;
+}
+
 void lenv_add_builtin(lenv* e, char* name, lbuiltin func) {
   lval* k = lval_sym(name);
   lval* v = lval_builtin(func);
@@ -661,6 +699,9 @@ void lenv_add_builtins(lenv* e) {
   lenv_add_builtin(e, "<",  builtin_lt);
   lenv_add_builtin(e, ">=", builtin_ge);
   lenv_add_builtin(e, "<=", builtin_le);
+  lenv_add_builtin(e, "||", builtin_or);
+  lenv_add_builtin(e, "&&", builtin_and);
+  lenv_add_builtin(e, "!", builtin_not);
 }
 
 /* Evaluation */
@@ -813,7 +854,7 @@ int main(int argc, char** argv) {
     "                                                     \
       boolean : /#t|#f/  ;                                \
       number : /-?[0-9]+/ ;                               \
-      symbol : /[a-zA-Z0-9_+\\-*\\/\\\\=<>!&]+/ ;         \
+      symbol : /[a-zA-Z0-9_+\\-*\\/\\\\=<>!&\\|]+/ ;      \
       sexpr  : '(' <expr>* ')' ;                          \
       qexpr  : '{' <expr>* '}' ;                          \
       expr   : <boolean> | <number> | <symbol> | <sexpr> |\
