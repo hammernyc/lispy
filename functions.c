@@ -37,6 +37,7 @@ void lenv_put(lenv *e, lval *k, lval *v) ;
 void lenv_del(lenv*);
 
 lval *builtin_eval(lenv *e, lval* a);
+lval *builtin_list(lenv *e, lval *a);
 
 typedef lval*(*lbuiltin)(lenv*, lval*);
 
@@ -249,39 +250,81 @@ lval* lval_copy(lval* v) {
 }
 
 lval* lval_call(lenv* e, lval* f, lval* a) {
-  if (f->builtin) { return f->builtin(e, a); }
-
-  /* Record Argument Counts */
+  if (f->builtin)
+    return f->builtin(e, a);
+  
   int given = a->count;
   int total = f->formals->count;
-
+  
   while (a->count) {
     /* If we've ran out of formal arguments to bind */
     if (f->formals->count == 0) {
       lval_del(a);
-      return lval_err(
-        "Function passed too many arguments. "
-        "Got %i, Expected %i.", given, total);
+      return lval_err("Function passed too many arguments. "
+        "Got %i, Expected %i.", given, total); 
     }
-
+    
     lval* sym = lval_pop(f->formals, 0);
+    
+    /* Special Case to deal with '&' */
+    if (strcmp(sym->sym, "&") == 0) {
+      if (f->formals->count != 1) {
+        lval_del(a);
+        return lval_err("Function format invalid. "
+          "Symbol '&' not followed by single symbol.");
+      }
+      
+      /* Next formal should be bound to remaining arguments */
+      lval* nsym = lval_pop(f->formals, 0);
+      lenv_put(f->env, nsym, builtin_list(e, a));
+      lval_del(sym); lval_del(nsym);
+      break;
+    }
+    
+    /* Pop the next argument from the list */
     lval* val = lval_pop(a, 0);
-
+    
+    /* Bind a copy into the function's environment */
     lenv_put(f->env, sym, val);
-
-    lval_del(sym);
-    lval_del(val);
+    
+    /* Delete symbol and value */
+    lval_del(sym); lval_del(val);
   }
-
+  
   /* Argument list is now bound so can be cleaned up */
   lval_del(a);
-
+  
+  /* If '&' remains in formal list bind to empty list */
+  if (f->formals->count > 0 &&
+    strcmp(f->formals->cell[0]->sym, "&") == 0) {
+    
+    /* Check to ensure that & is not passed invalidly. */
+    if (f->formals->count != 2) {
+      return lval_err("Function format invalid. "
+        "Symbol '&' not followed by single symbol.");
+    }
+    
+    /* Pop and delete '&' symbol */
+    lval_del(lval_pop(f->formals, 0));
+    
+    /* Pop next symbol and create empty list */
+    lval* sym = lval_pop(f->formals, 0);
+    lval* val = lval_qexpr();
+    
+    /* Bind to environment and delete */
+    lenv_put(f->env, sym, val);
+    lval_del(sym); lval_del(val);
+  }
+  
   /* If all formals have been bound evaluate */
   if (f->formals->count == 0) {
+  
+    /* Set environment parent to evaluation environment */
     f->env->par = e;
+    
     /* Evaluate and return */
-    return builtin_eval(
-      f->env, lval_add(lval_sexpr(), lval_copy(f->body)));
+    return builtin_eval(f->env, 
+      lval_add(lval_sexpr(), lval_copy(f->body)));
   } else {
     /* Otherwise return partially evaluated function */
     return lval_copy(f);
@@ -476,6 +519,30 @@ lval *builtin_def(lenv *e, lval *a) {
 
 lval *builtin_put(lenv *e, lval *a) {
   return builtin_var(e, a, "=");
+}
+
+lval *builtin_fun(lenv *e, lval *a) {
+  LASSERT_NUM("fun", a, 2);
+  LASSERT_TYPE("fun", a, 0, LVAL_QEXPR);
+  LASSERT_TYPE("fun", a, 1, LVAL_QEXPR);
+  LASSERT(a, a->cell[0]->count > 0,
+  "The parameter list passed to function 'fun' must be non-empty.");
+
+  for (int i = 0; i < a->cell[0]->count; i++) {
+    LASSERT(a, (a->cell[0]->cell[i]->type == LVAL_SYM),
+      "Cannot define non-symbol. Got %s, Expected %s.",
+      ltype_name(a->cell[0]->cell[i]->type),ltype_name(LVAL_SYM));
+  }
+  lval *formals = lval_pop(a, 0);
+  lval *name = lval_qexpr();
+  lval_add(name, lval_pop(formals, 0));
+
+  lval *body = lval_pop(a, 0);
+  lval_del(a);
+  lval *qexpr = lval_qexpr();
+  lval_add(qexpr, name);
+  lval_add(qexpr,lval_lambda(formals, body));
+  return builtin_def(e, qexpr);
 }
 
 
@@ -691,6 +758,7 @@ void lenv_add_builtin(lenv* e, char* name, lbuiltin func) {
 void lenv_add_builtins(lenv* e) {
   lenv_add_builtin(e, "def", builtin_def);
   lenv_add_builtin(e, "=", builtin_put);
+  lenv_add_builtin(e, "fun", builtin_fun);
   lenv_add_builtin(e, "print_env", builtin_printenv);
   lenv_add_builtin(e, "\\", builtin_lambda);
 
